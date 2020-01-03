@@ -1,3 +1,9 @@
+ASLR should be TURNED OFF !!!!
+
+working code as psuedo code:
+-----------------------------------------------------------------
+
+
 Int Original(int &x)
 {
 Jmp addrOfatrampoline
@@ -21,3 +27,5 @@ Return a+1;
 
 }
 ExecutefirstN = [someOriginal,e9, original+N]
+
+---------------------------------------------------------------------
