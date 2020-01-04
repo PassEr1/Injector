@@ -1,6 +1,6 @@
 ASLR should be TURNED OFF !!!!
 
-working code as psuedo code:
+working code as pseudo code:
 -----------------------------------------------------------------
 
 
