@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Example of usage:
 get_address_of_glibc_function_in_process.py 113227 printf@@GLIBC_ 32
@@ -65,7 +67,7 @@ def fix_names_for_bash(fname):
 def calc_final_address(hex_as_str1, hex_as_str2):
 	n1 = int(hex_as_str1 ,16)
 	n2 = int(hex_as_str2 ,16)
-	return n1 + n2
+	return hex(n1 + n2)
 	
 
 def main(argv):
@@ -78,7 +80,7 @@ def main(argv):
 	offset_of_requested_function = get_offset_of_requested_function(fix_names_for_bash(file_of_libc), target_function_name)
 	print("base address is: {}".format(base_address_of_loaded_libc))
 	print("offset of requested function is: {} ".format(offset_of_requested_function))
-	print("final address of the target function is: 0x{}".format(calc_final_address(base_address_of_loaded_libc, offset_of_requested_function)))
+	print("final address of the target function is: {}".format(calc_final_address(base_address_of_loaded_libc, offset_of_requested_function)))
 	
 if __name__ == "__main__":
 	main(sys.argv)
