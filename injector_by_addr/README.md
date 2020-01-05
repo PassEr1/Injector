@@ -20,7 +20,7 @@ Ret
 Int Proxy(int & x)
 {
 X = pasten;
-Auto a =(void(*)(int &))exutetefirstN(x);
+Auto a =(int(*)(int &))exutetefirstN(x);
 
 
 Return a+1;
