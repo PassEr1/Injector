@@ -100,12 +100,12 @@ private:
 		//disassemble length of each instruction, until we have 5 or more bytes worth
 		while(trampolineLength < 5)
 		{
-			_logger("trampoline Length is " + to_string(trampolineLength));
+			_logger("trampoline Length is " + to_string(trampolineLength) + " bytes");
 		 	void* instructionPointer = (void*)((unsigned int)functionAddress + trampolineLength);
 			printf("current instruction being scanned is: 0x%p\n", instructionPointer);
 		 	trampolineLength += hde32_disasm(instructionPointer, &disam);
 		}
-		_logger("after while trampolineLength is " + to_string(trampolineLength));
+		_logger("after while trampolineLength is " + to_string(trampolineLength) + " bytes");
 		return trampolineLength;
 			
 	}
