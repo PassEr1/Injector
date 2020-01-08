@@ -11,6 +11,7 @@
 #include<unistd.h>
 #include<sys/wait.h>
 
+//open source code
 #include "hde32.h"
 
 using namespace std;
@@ -70,7 +71,7 @@ public:
 		wait(NULL);
 		_logger("cheking trampoline length"); 	
 		unsigned int _N_bytes_to_back_up = this->get_how_many_bytes_to_save();
-		_logger("trampoline length is " + _N_bytes_to_back_up);
+		_logger("trampoline length is " + to_string(_N_bytes_to_back_up));
 		
 		ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
 		return true;
@@ -91,17 +92,20 @@ private:
 		hde32s disam;
 		 
 		if(!functionAddress)
-		 return 0;
+		{
+			_logger("not valaid target address. injection is canceled! " + (trampolineLength));
+		 	return 0;
+		}
 		 
 		//disassemble length of each instruction, until we have 5 or more bytes worth
 		while(trampolineLength < 5)
 		{
-			_logger("trampolineLength is " + (trampolineLength));
-			_logger("instractionPointer is " + (trampolineLength));
+			_logger("trampoline Length is " + to_string(trampolineLength));
 		 	void* instructionPointer = (void*)((unsigned int)functionAddress + trampolineLength);
+			printf("current instruction being scanned is: 0x%p\n", instructionPointer);
 		 	trampolineLength += hde32_disasm(instructionPointer, &disam);
 		}
-		_logger("after while trampolineLength is " + (trampolineLength));
+		_logger("after while trampolineLength is " + to_string(trampolineLength));
 		return trampolineLength;
 			
 	}
@@ -126,7 +130,7 @@ int main(int argc, char* argv[])
 	MyArgs args = validateArgs(argc, argv);
 	Injector nurse(args.pid, args.injection_addr, logerToStdOut);
 	nurse.inject_to_libc_open();
-	nurse.inject_to_libc_open();
+
 }
 
 
