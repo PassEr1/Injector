@@ -10,6 +10,9 @@
 #include <sys/ptrace.h>
 #include<unistd.h>
 #include<sys/wait.h>
+#include <cstring>
+#include <sys/mman.h>
+
 
 //open source code
 #include "hde32.h"
@@ -53,9 +56,11 @@ class Injector
 
 public:
 	Injector(unsigned long targetPid, uint32_t injection_addr,LoggerFunctionPtr _fpLogger)
-	:_targetPid(targetPid),
+	:_JUMP_SIZE(5),
+	_targetPid(targetPid),
 	_injection_addr(injection_addr),
-	_logger(_fpLogger)
+	_logger(_fpLogger),
+	_original_code_and_jmp_to_target_plus_N(_alloc_for_trampoline_executable_space())
 	{
 		_logger("Indicators has been initiated.");
 	}
@@ -65,27 +70,41 @@ public:
 		_logger("Been there done that.");
 	}
 	
-	bool inject_to_libc_open()const
+	bool inject_to_libc_open()
 	{
 		ptrace(PTRACE_ATTACH, _targetPid, NULL, NULL);
 		wait(NULL);
 		_logger("cheking trampoline length"); 	
-		unsigned int _N_bytes_to_back_up = this->get_how_many_bytes_to_save();
-		_logger("trampoline length is " + to_string(_N_bytes_to_back_up));
+		unsigned int _NBytesToBackup = this->_getHowManyBytesToSave();
+		_logger("trampoline length is " + to_string(_NBytesToBackup));
+		
+		_buildTrampoline(_NBytesToBackup);
 		
 		ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
 		return true;
 	}
 	
+		
 	
 	
 private:
+	const size_t _JUMP_SIZE;
 	const unsigned long _targetPid;
 	const uint32_t _injection_addr;
 	LoggerFunctionPtr _logger=nullptr;
-	char _original_code_and_jnp_to_pus_N[25];
+	char* _original_code_and_jmp_to_target_plus_N=nullptr;//AKA trampoline
+	
+	char* _alloc_for_trampoline_executable_space()const
+	{
+		return (char*)mmap(NULL,
+			_JUMP_SIZE,
+			PROT_EXEC | PROT_WRITE,
+			MAP_ANONYMOUS | MAP_PRIVATE, // may be upgraded to MAP_PRIVATE later
+			-1,
+			0);
+	}
 
-	int get_how_many_bytes_to_save()const
+	int _getHowManyBytesToSave()const
 	{
 		const void* functionAddress = reinterpret_cast<void*>(_injection_addr);
 		unsigned int trampolineLength = 0;
@@ -105,10 +124,25 @@ private:
 			printf("current instruction being scanned is: 0x%p\n", instructionPointer);
 		 	trampolineLength += hde32_disasm(instructionPointer, &disam);
 		}
-		_logger("after while trampolineLength is " + to_string(trampolineLength) + " bytes");
+		_logger("after while trampoline length is " + to_string(trampolineLength) + " bytes");
 		return trampolineLength;
 			
 	}
+	
+	void _buildTrampoline(int _NBytesToBackup)
+	{
+		unsigned long addressInTargetAfterJumpToProxy = ((unsigned long)_injection_addr + _NBytesToBackup);
+		unsigned long addressInTrampolineExecCodeAfterJumpInstruction = ((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup + 5);
+		char jump[5] = {(char)0xE9, 0x00, 0x00, 0x00, 0x00};
+		*(unsigned long*)(jump+1) = addressInTrampolineExecCodeAfterJumpInstruction - addressInTargetAfterJumpToProxy;
+		memcpy(
+			(void*)((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup),
+			jump,
+			5						
+		);
+			
+	}
+	
 
 };
 
