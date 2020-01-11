@@ -6,7 +6,8 @@ working code as pseudo code:
 
 Int Original(int &x)
 {
-Jmp addrOfatrampoline
+Jmp addrOfatrampoline # 5 bytes worth
+# < position 1
 ...
 }
 
@@ -26,6 +27,6 @@ Auto a =(int(*)(int &))exutetefirstN(x);
 Return a+1;
 
 }
-ExecutefirstN = [someOriginal,e9, original+N]
-
+ExecutefirstN = [someOriginal,e9, (original+N) ]
+#                                           ^ position 2
 ---------------------------------------------------------------------

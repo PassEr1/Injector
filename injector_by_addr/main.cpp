@@ -59,16 +59,19 @@ class Injector32
 public:
 	Injector32(unsigned long targetPid, uint32_t injection_addr,LoggerFunctionPtr _fpLogger)
 	:_JUMP_SIZE(5),
+	_traceeMemoryImageBuffer(new char[MAX_POSSIBLE_TRAMPOLINE_SIZE]),
 	_targetPid(targetPid),
 	_injection_addr(injection_addr),
 	_logger(_fpLogger),
 	_original_code_and_jmp_to_target_plus_N(_alloc_for_trampoline_executable_space())
 	{
+		_loadTraceeMemoryImage(_traceeMemoryImageBuffer, (void*)_injection_addr, MAX_POSSIBLE_TRAMPOLINE_SIZE);
 		_logger("Indicators has been initiated.");
 	}
 	
 	~Injector32()
 	{
+		delete _traceeMemoryImageBuffer;
 		_logger("Been there done that.");
 	}
 	
@@ -85,6 +88,7 @@ public:
 		
 		_logger("trampoline length is " + to_string(_NBytesToBackup));
 		_buildTrampoline(_NBytesToBackup);
+		_writeTheHook();
 		
 		ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
 		return true;
@@ -99,6 +103,28 @@ private:
 	const uint32_t _injection_addr;
 	LoggerFunctionPtr _logger=nullptr;
 	char* _original_code_and_jmp_to_target_plus_N=nullptr;//AKA trampoline
+	char* const _traceeMemoryImageBuffer=nullptr;
+	
+	void _writeTheHook()
+	{
+		char jumpToProxyFunction[5] = {(char)0xE9, 0x00, 0x00, 0x00, 0x00};
+		*(unsigned long *)(jumpToProxyFunction+1) = (unsigned long)proxies::proxy__libc_open - ((unsigned long)_injection_addr + 5); //TODO: verify that can subtract local address with tracee's
+		
+		uint32_t originalTextCodeInPlus_4_Bytes = ((uint32_t*)_traceeMemoryImageBuffer)[1];
+		memcpy(&originalTextCodeInPlus_4_Bytes, jumpToProxyFunction+4, 1);//put last byte left from jump into next block of code to inject. reserving the rest of the text(that shoud by complete instructions)
+		uint32_t lowerPartOfJump = *((uint32_t*)jumpToProxyFunction);
+		uint32_t upperPrtOfJump = originalTextCodeInPlus_4_Bytes;
+		
+		ptrace(PTRACE_POKETEXT,
+				_targetPid,
+				_injection_addr,
+				(void*)(&lowerPartOfJump));
+		ptrace(PTRACE_POKETEXT,
+				_targetPid,
+				_injection_addr + sizeof(lowerPartOfJump),
+				(void*)(&upperPrtOfJump));
+				
+	}
 	
 	char* _alloc_for_trampoline_executable_space()const
 	{
@@ -109,6 +135,7 @@ private:
 			-1,
 			0);
 	}
+	
 
 	int _getHowManyBytesToSave()const
 	{
@@ -122,17 +149,13 @@ private:
 		 	return 0;
 		}
 		
-		char* memoryImageBuffer = new char[MAX_POSSIBLE_TRAMPOLINE_SIZE];
-		_loadTraceeMemoryImage(memoryImageBuffer, (void*)_injection_addr, MAX_POSSIBLE_TRAMPOLINE_SIZE);
 		
-		//disassemble length of each instruction, until we have 5 or more bytes worth
-		while(trampolineLength < 5)
+		while(trampolineLength < _JUMP_SIZE)
 		{
 			_logger("trampoline Length is " + to_string(trampolineLength) + " bytes");
-		 	void* instructionPointer = (void*)((unsigned int)memoryImageBuffer + trampolineLength);
+		 	void* instructionPointer = (void*)((unsigned int)_traceeMemoryImageBuffer + trampolineLength);
 		 	trampolineLength += hde32_disasm(instructionPointer, &disam);
 		}
-		_logger("after while trampoline length is " + to_string(trampolineLength) + " bytes");
 		return trampolineLength;
 			
 	}
@@ -145,14 +168,16 @@ private:
 			return;
 		}
 		
+		_logger("copying first " + to_string(_NBytesToBackup)+ "  bytes in tracee memory.");
+		memcpy(_original_code_and_jmp_to_target_plus_N, this->_traceeMemoryImageBuffer, _NBytesToBackup);
 		unsigned long addressInTargetAfterJumpToProxy = ((unsigned long)_injection_addr + _NBytesToBackup); // see "position 1" in the README.md in this directory.
-		unsigned long addressInTrampolineExecCodeAfterJumpInstruction = ((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup + 5); //see "position 2" in the README.md in ./
+		unsigned long addressInTrampolineExecCodeAfterJumpInstruction = ((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup + 5); //see "position 2" in the README.md .
 		char jump[5] = {(char)0xE9, 0x00, 0x00, 0x00, 0x00};
-		*(unsigned long*)(jump+1) = addressInTrampolineExecCodeAfterJumpInstruction - addressInTargetAfterJumpToProxy;
+		*(unsigned long*)(jump+1) = addressInTrampolineExecCodeAfterJumpInstruction - addressInTargetAfterJumpToProxy; //TODO: verify that can subtract local address with tracee's
 		memcpy(
 			(void*)((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup),
-			jump,
-			5						
+			jump, 
+			_JUMP_SIZE						
 		);
 		_logger("trampoline has built.");
 			
