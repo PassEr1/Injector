@@ -12,14 +12,15 @@
 #include<sys/wait.h>
 #include <cstring>
 #include <sys/mman.h>
+#include <sys/user.h>
 
-
-//open source code
+//open source
 #include "hde32.h"
 
 using namespace std;
 using LoggerFunctionPtr = void (*)(std::string);
 
+constexpr size_t MAX_POSSIBLE_TRAMPOLINE_SIZE = 25;
 
 void logerToStdOut(std::string logMsg)
 {
@@ -51,11 +52,12 @@ public:
 	uint32_t injection_addr;
 };
 
-class Injector
+
+class Injector32
 {
 
 public:
-	Injector(unsigned long targetPid, uint32_t injection_addr,LoggerFunctionPtr _fpLogger)
+	Injector32(unsigned long targetPid, uint32_t injection_addr,LoggerFunctionPtr _fpLogger)
 	:_JUMP_SIZE(5),
 	_targetPid(targetPid),
 	_injection_addr(injection_addr),
@@ -65,7 +67,7 @@ public:
 		_logger("Indicators has been initiated.");
 	}
 	
-	~Injector()
+	~Injector32()
 	{
 		_logger("Been there done that.");
 	}
@@ -75,9 +77,13 @@ public:
 		ptrace(PTRACE_ATTACH, _targetPid, NULL, NULL);
 		wait(NULL);
 		_logger("cheking trampoline length"); 	
-		unsigned int _NBytesToBackup = this->_getHowManyBytesToSave();
-		_logger("trampoline length is " + to_string(_NBytesToBackup));
+		unsigned int _NBytesToBackup = _getHowManyBytesToSave();
+		if(!_NBytesToBackup)
+		{
+			return false;
+		}
 		
+		_logger("trampoline length is " + to_string(_NBytesToBackup));
 		_buildTrampoline(_NBytesToBackup);
 		
 		ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
@@ -115,13 +121,15 @@ private:
 			_logger("not valaid target address. injection is canceled! " + (trampolineLength));
 		 	return 0;
 		}
-		 
+		
+		char* memoryImageBuffer = new char[MAX_POSSIBLE_TRAMPOLINE_SIZE];
+		_loadTraceeMemoryImage(memoryImageBuffer, (void*)_injection_addr, MAX_POSSIBLE_TRAMPOLINE_SIZE);
+		
 		//disassemble length of each instruction, until we have 5 or more bytes worth
 		while(trampolineLength < 5)
 		{
 			_logger("trampoline Length is " + to_string(trampolineLength) + " bytes");
-		 	void* instructionPointer = (void*)((unsigned int)functionAddress + trampolineLength);
-			printf("current instruction being scanned is: 0x%p\n", instructionPointer);
+		 	void* instructionPointer = (void*)((unsigned int)memoryImageBuffer + trampolineLength);
 		 	trampolineLength += hde32_disasm(instructionPointer, &disam);
 		}
 		_logger("after while trampoline length is " + to_string(trampolineLength) + " bytes");
@@ -131,8 +139,14 @@ private:
 	
 	void _buildTrampoline(int _NBytesToBackup)
 	{
-		unsigned long addressInTargetAfterJumpToProxy = ((unsigned long)_injection_addr + _NBytesToBackup);
-		unsigned long addressInTrampolineExecCodeAfterJumpInstruction = ((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup + 5);
+		if(_original_code_and_jmp_to_target_plus_N == nullptr)
+		{
+			_logger("does not have enough space to build trampolint. build is canceled.");
+			return;
+		}
+		
+		unsigned long addressInTargetAfterJumpToProxy = ((unsigned long)_injection_addr + _NBytesToBackup); // see "position 1" in the README.md in this directory.
+		unsigned long addressInTrampolineExecCodeAfterJumpInstruction = ((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup + 5); //see "position 2" in the README.md in ./
 		char jump[5] = {(char)0xE9, 0x00, 0x00, 0x00, 0x00};
 		*(unsigned long*)(jump+1) = addressInTrampolineExecCodeAfterJumpInstruction - addressInTargetAfterJumpToProxy;
 		memcpy(
@@ -140,7 +154,39 @@ private:
 			jump,
 			5						
 		);
+		_logger("trampoline has built.");
 			
+	}
+	
+	
+	bool _loadTraceeMemoryImage(char* imageBuffer, void* startAddr, size_t length)const
+	{
+		if(!imageBuffer)
+		{
+			_logger("Could not copy memoty image of target process to buffer!");
+			return false;	
+		}
+		
+		uint32_t currentImageSize = 0;
+		uint32_t offsetFromStart =0;
+		
+		while(currentImageSize < length)
+		{
+			long inst = ptrace(
+				PTRACE_PEEKTEXT,
+				_targetPid,
+                (void*)((uint32_t)startAddr + offsetFromStart),
+                NULL);
+			memcpy(
+           		imageBuffer + offsetFromStart,
+           		&inst,
+           		sizeof(inst));
+           
+           offsetFromStart += sizeof(inst);
+           currentImageSize += sizeof(inst);
+		}
+		
+		return true;
 	}
 	
 
@@ -162,7 +208,7 @@ int main(int argc, char* argv[])
 {
 	cout << "Run Me With sudo (!) " << endl;
 	MyArgs args = validateArgs(argc, argv);
-	Injector nurse(args.pid, args.injection_addr, logerToStdOut);
+	Injector32 nurse(args.pid, args.injection_addr, logerToStdOut);
 	nurse.inject_to_libc_open();
 
 }
