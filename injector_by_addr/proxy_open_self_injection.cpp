@@ -1,22 +1,27 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "hook_base.h"
 
 using namespace std;
 
-int proxy__libc_open (const char *file, int oflag)
+namespace proxyies
 {
-	cout << "inside the proxy function!!! \n";
-	//int resOfOrigin =(int(*)(const char*, int ))exutetefirstN(x);
-	return -1;
+	int proxy__libc_open (const char *file, int oflag)
+	{
+		cout << "inside the proxy function!!! \n";
+		//int resOfOrigin =(int(*)(const char*, int ))exutetefirstN(x);
+		return -1;
+	}
 }
 
 
 void hook_Glibc_OpenFunction()
 {
-	
+	HookSetBase HookSetBase((uint32_t)open, (uint32_t)proxyies::proxy__libc_open, logerToStdOut);
 }
 
 

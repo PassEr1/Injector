@@ -1,5 +1,3 @@
-
-
 #include <iostream>
 #include <stdint.h>
 #include <string>
@@ -28,25 +26,53 @@ void logerToStdOut(std::string logMsg)
 	cout << "[>> log message << ] " << logMsg <<endl;
 }
 
+namespace proxies
+{
+	int proxy__libc_open (const char *file, int oflag)
+	{
+		printf("inside the proxy function!!! \n");
+		//int resOfOrigin =(int(*)(const char*, int ))exutetefirstN(x);
+		return -1;
+	}
+}
 
 
-class HookSetBase
+
+class MyArgs
+{
+public:
+	MyArgs(char* _pid, char* _injection_addr, string sharedObject)
+	{
+		pid = strtoul(_pid, nullptr, 10);
+		std::istringstream converter(_injection_addr);
+		converter >> std::hex >> injection_addr;
+		_sharedObject = sharedObject;
+			
+	}
+	unsigned long pid;
+	uint32_t injection_addr;
+	string sharedObject;
+	
+};
+
+
+class Injector32
 {
 
 public:
-	HookSetBase(uint32_t injection_addr, uint32_t proxyFunction, LoggerFunctionPtr _fpLogger)
+	Injector32(unsigned long targetPid, uint32_t injection_addr,LoggerFunctionPtr _fpLogger)
 	:_JUMP_SIZE(5),
-	_injection_addr(injection_addr), //TODO: need a static cast here,
-	_proxy_function(proxyFunction),
+	_traceeMemoryImageBuffer(new char[MAX_POSSIBLE_TRAMPOLINE_SIZE]),
+	_targetPid(targetPid),
+	_injection_addr(injection_addr),
 	_logger(_fpLogger),
-	_original_code_and_jmp_to_target_plus_N(_alloc_for_trampoline_executable_space()),
-	_traceeMemoryImageBuffer(new char[MAX_POSSIBLE_TRAMPOLINE_SIZE])
+	_original_code_and_jmp_to_target_plus_N(_alloc_for_trampoline_executable_space())
 	{
 		_loadTraceeMemoryImage(_traceeMemoryImageBuffer, (void*)_injection_addr, MAX_POSSIBLE_TRAMPOLINE_SIZE);
 		_logger("Indicators has been initiated.");
 	}
 	
-	~HookSetBase()
+	~Injector32()
 	{
 		delete _traceeMemoryImageBuffer;
 		_logger("Been there done that.");
@@ -55,6 +81,8 @@ public:
 	// deprecated!!!
 	/*bool inject_to_libc_open() 
 	{
+		ptrace(PTRACE_ATTACH, _targetPid, NULL, NULL);
+		wait(NULL);
 		_logger("cheking trampoline length"); 	
 		unsigned int _NBytesToBackup = _getHowManyBytesToSave();
 		if(!_NBytesToBackup)
@@ -66,6 +94,7 @@ public:
 		_buildTrampoline(_NBytesToBackup);
 		_writeTheHook();
 		
+		ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
 		return true;
 	}
 	*/
@@ -80,8 +109,8 @@ public:
 	
 private:
 	const size_t _JUMP_SIZE;
-	const uint32_t _injection_addr=0;
-	const uint32_t _proxy_function=0;
+	const unsigned long _targetPid;
+	const uint32_t _injection_addr;
 	LoggerFunctionPtr _logger=nullptr;
 	char* _original_code_and_jmp_to_target_plus_N=nullptr;//AKA trampoline
 	char* const _traceeMemoryImageBuffer=nullptr;
@@ -90,17 +119,21 @@ private:
 	{
 		_logger("writing the jump to the proxy function.");
 		char jumpToProxyFunction[5] = {(char)0xE9, 0x00, 0x00, 0x00, 0x00};
-		*(unsigned long *)(jumpToProxyFunction+1) = (unsigned long)_proxy_function - ((unsigned long)_injection_addr + 5); //TODO: verify that can subtract local address with tracee's
+		*(unsigned long *)(jumpToProxyFunction+1) = (unsigned long)proxies::proxy__libc_open - ((unsigned long)_injection_addr + 5); //TODO: verify that can subtract local address with tracee's
 		
 		uint32_t originalTextCodeInPlus_4_Bytes = ((uint32_t*)_traceeMemoryImageBuffer)[1];
 		memcpy(&originalTextCodeInPlus_4_Bytes, jumpToProxyFunction+4, 1);//put last byte left from jump into next block of code to inject. reserving the rest of the text(that shoud by complete instructions)
 		uint32_t lowerPartOfJump = *((uint32_t*)jumpToProxyFunction);
 		uint32_t upperPrtOfJump = originalTextCodeInPlus_4_Bytes;
 		
-		//TODO: write the injection to open part
-		//...
-		(void)lowerPartOfJump;
-		(void)upperPrtOfJump;
+		ptrace(PTRACE_POKETEXT,
+				_targetPid,
+				_injection_addr,
+				(void*)(&lowerPartOfJump));
+		ptrace(PTRACE_POKETEXT,
+				_targetPid,
+				_injection_addr + sizeof(lowerPartOfJump),
+				(void*)(&upperPrtOfJump));
 				
 	}
 	
@@ -170,10 +203,10 @@ private:
 			return false;	
 		}
 		
-		//uint32_t currentImageSize = 0;
-		//	uint32_t offsetFromStart =0;
+		uint32_t currentImageSize = 0;
+		uint32_t offsetFromStart =0;
 		
-		/*while(currentImageSize < length)
+		while(currentImageSize < length)
 		{
 			long inst = ptrace(
 				PTRACE_PEEKTEXT,
@@ -187,7 +220,7 @@ private:
            
            offsetFromStart += sizeof(inst);
            currentImageSize += sizeof(inst);
-		}*/
+		}
 		
 		return true;
 	}
@@ -196,16 +229,23 @@ private:
 };
 
 
+MyArgs validateArgs(int argc, char* argv[])
+{
+	if(argc < 4)
+	{
+		cout << "Wrong Args!\n	Usage: [PID] [TARGET_ADDRESS] [SHARED_OBJ]\n";
+		throw exception();
+	}
+	
+	return MyArgs(argv[1], argv[2], argv[3]);	
+}
 
+int main(int argc, char* argv[])
+{
+	cout << "Run Me With sudo (!) " << endl;
+	MyArgs args = validateArgs(argc, argv);
+	Injector32 nurse(args.pid, args.injection_addr, logerToStdOut);
+	nurse.injectSharedObject(args.sharedObject);
 
-
-
-
-
-
-
-
-
-
-
+}
 
