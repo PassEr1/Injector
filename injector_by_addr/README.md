@@ -7,7 +7,7 @@ working code as pseudo code:
 Int Original(int &x)
 {
 Jmp addrOfatrampoline # 5 bytes worth
-# < position 1
+// < position 1
 ...
 }
 
@@ -28,5 +28,5 @@ Return a+1;
 
 }
 ExecutefirstN = [someOriginal,e9, (original+N) ]
-#                                           ^ position 2
+//                                          ^ position 2
 ---------------------------------------------------------------------
