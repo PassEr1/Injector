@@ -8,6 +8,11 @@
 
 using namespace std;
 
+void logerToStdOut(std::string logMsg)
+{
+	cout << "[>> log message << ] " << logMsg <<endl;
+}
+
 namespace proxyies
 {
 	int proxy__libc_open (const char *file, int oflag)

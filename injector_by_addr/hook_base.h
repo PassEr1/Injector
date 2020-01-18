@@ -23,13 +23,6 @@ using LoggerFunctionPtr = void (*)(std::string);
 constexpr size_t MAX_POSSIBLE_TRAMPOLINE_SIZE = 25;
 
 
-void logerToStdOut(std::string logMsg)
-{
-	cout << "[>> log message << ] " << logMsg <<endl;
-}
-
-
-
 class HookSetBase
 {
 
@@ -40,20 +33,19 @@ public:
 	_proxy_function(proxyFunction),
 	_logger(_fpLogger),
 	_original_code_and_jmp_to_target_plus_N(_alloc_for_trampoline_executable_space()),
-	_traceeMemoryImageBuffer(new char[MAX_POSSIBLE_TRAMPOLINE_SIZE])
+	_memoryImageBuffer(new char[MAX_POSSIBLE_TRAMPOLINE_SIZE])
 	{
-		_loadTraceeMemoryImage(_traceeMemoryImageBuffer, (void*)_injection_addr, MAX_POSSIBLE_TRAMPOLINE_SIZE);
+		_loadTraceeMemoryImage(_memoryImageBuffer, (void*)_injection_addr, MAX_POSSIBLE_TRAMPOLINE_SIZE);
 		_logger("Indicators has been initiated.");
 	}
 	
 	~HookSetBase()
 	{
-		delete _traceeMemoryImageBuffer;
+		delete _memoryImageBuffer;
 		_logger("Been there done that.");
 	}
 	
-	// deprecated!!!
-	/*bool inject_to_libc_open() 
+	bool inject_to_libc_open() 
 	{
 		_logger("cheking trampoline length"); 	
 		unsigned int _NBytesToBackup = _getHowManyBytesToSave();
@@ -68,14 +60,7 @@ public:
 		
 		return true;
 	}
-	*/
 	
-	void injectSharedObject(string pathOfShared)
-	{
-		_logger("injectSharedObject - is not supported yet!");
-	}
-	
-		
 	
 	
 private:
@@ -84,7 +69,7 @@ private:
 	const uint32_t _proxy_function=0;
 	LoggerFunctionPtr _logger=nullptr;
 	char* _original_code_and_jmp_to_target_plus_N=nullptr;//AKA trampoline
-	char* const _traceeMemoryImageBuffer=nullptr;
+	char* const _memoryImageBuffer=nullptr;
 	
 	void _writeTheHook()
 	{
@@ -92,7 +77,7 @@ private:
 		char jumpToProxyFunction[5] = {(char)0xE9, 0x00, 0x00, 0x00, 0x00};
 		*(unsigned long *)(jumpToProxyFunction+1) = (unsigned long)_proxy_function - ((unsigned long)_injection_addr + 5); //TODO: verify that can subtract local address with tracee's
 		
-		uint32_t originalTextCodeInPlus_4_Bytes = ((uint32_t*)_traceeMemoryImageBuffer)[1];
+		uint32_t originalTextCodeInPlus_4_Bytes = ((uint32_t*)_memoryImageBuffer)[1];
 		memcpy(&originalTextCodeInPlus_4_Bytes, jumpToProxyFunction+4, 1);//put last byte left from jump into next block of code to inject. reserving the rest of the text(that shoud by complete instructions)
 		uint32_t lowerPartOfJump = *((uint32_t*)jumpToProxyFunction);
 		uint32_t upperPrtOfJump = originalTextCodeInPlus_4_Bytes;
@@ -131,7 +116,7 @@ private:
 		while(trampolineLength < _JUMP_SIZE)
 		{
 			_logger("trampoline Length is " + to_string(trampolineLength) + " bytes");
-		 	void* instructionPointer = (void*)((unsigned int)_traceeMemoryImageBuffer + trampolineLength);
+		 	void* instructionPointer = (void*)((unsigned int)_memoryImageBuffer + trampolineLength);
 		 	trampolineLength += hde32_disasm(instructionPointer, &disam);
 		}
 		return trampolineLength;
@@ -147,7 +132,7 @@ private:
 		}
 		
 		_logger("copying first " + to_string(_NBytesToBackup)+ "  bytes in tracee memory.");
-		memcpy(_original_code_and_jmp_to_target_plus_N, this->_traceeMemoryImageBuffer, _NBytesToBackup);
+		memcpy(_original_code_and_jmp_to_target_plus_N, this->_memoryImageBuffer, _NBytesToBackup);
 		unsigned long addressInTargetAfterJumpToProxy = ((unsigned long)_injection_addr + _NBytesToBackup); // see "position 1" in the README.md in this directory.
 		unsigned long addressInTrampolineExecCodeAfterJumpInstruction = ((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup + 5); //see "position 2" in the README.md .
 		char jump[5] = {(char)0xE9, 0x00, 0x00, 0x00, 0x00};
@@ -169,29 +154,33 @@ private:
 			_logger("Could not copy memoty image of target process to buffer!");
 			return false;	
 		}
-		
-		//uint32_t currentImageSize = 0;
-		//	uint32_t offsetFromStart =0;
-		
-		/*while(currentImageSize < length)
-		{
-			long inst = ptrace(
-				PTRACE_PEEKTEXT,
-				_targetPid,
-                (void*)((uint32_t)startAddr + offsetFromStart),
-                NULL);
-			memcpy(
-           		imageBuffer + offsetFromStart,
-           		&inst,
-           		sizeof(inst));
-           
-           offsetFromStart += sizeof(inst);
-           currentImageSize += sizeof(inst);
-		}*/
-		
+
+		_setTargetAddressToRead(MAX_POSSIBLE_TRAMPOLINE_SIZE);
+		memcpy(imageBuffer, (void *)_injection_addr, MAX_POSSIBLE_TRAMPOLINE_SIZE);
+		_logger("memory image at the address of the target saved in buffer.");
 		return true;
 	}
+
+	void* _roundDownToPageBoundary(void* addr)const
+	{
+		static uint32_t pagesize = sysconf(_SC_PAGE_SIZE);
+		return (void*)((uint32_t)addr & ~(pagesize - 1));
+
+	}
+
+	void _setTargetAddressToRead(size_t length)const
+	{
+		mprotect(_roundDownToPageBoundary((void*)_injection_addr),
+			       	MAX_POSSIBLE_TRAMPOLINE_SIZE,
+			       	PROT_READ | PROT_EXEC);
+	}
 	
+	void _setTargetAddressToWrite(size_t length)const
+	{
+		mprotect(_roundDownToPageBoundary((void*)_injection_addr),
+			       	MAX_POSSIBLE_TRAMPOLINE_SIZE,
+			       	PROT_WRITE | PROT_EXEC);
+	}
 
 };
 
