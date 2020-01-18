@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 	{
 		cout << "here is the files content: \n";
 		void * library_handler = dlopen("/home/amit/Desktop/Projects/Injector/injector_by_addr/lib_proxy_open_inject.so", RTLD_NOW);
-		
+
 		while(true)
 		{
 			ifstream fileToRead(argv[1]);
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 					cout << line << endl;
 				}
 				fileToRead.close();
-				return 0;
+				return 0; //TODO: remove this return 
 				usleep(1000);
 				system("clear");
 			}
