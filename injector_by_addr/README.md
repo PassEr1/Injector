@@ -1,4 +1,3 @@
-ASLR should be TURNED OFF !!!!
 
 working code as pseudo code:
 -----------------------------------------------------------------
