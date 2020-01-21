@@ -14,13 +14,13 @@ int main(int argc, char *argv[])
 {
 	if(argc < 2)
 	{
-		cout << "pleae enter a file to monitor \n";	
+		cout << "Usage: <some-text-file>\n";	
 	}
 	else
 	{
+		void * library_handler = dlopen("/home/amit/Desktop/Projects/Injector/injector_by_addr/lib_proxy_open_inject.so", RTLD_NOW); // A line that simulates the dll injection somewhere in the code.
+		
 		cout << "here is the files content: \n";
-		void * library_handler = dlopen("/home/amit/Desktop/Projects/Injector/injector_by_addr/lib_proxy_open_inject.so", RTLD_NOW);
-
 		while(true)
 		{
 			ifstream fileToRead(argv[1]);
@@ -31,8 +31,8 @@ int main(int argc, char *argv[])
 				{
 					cout << line << endl;
 				}
+				
 				fileToRead.close();
-				return 0; //TODO: remove this return 
 				usleep(1000);
 				system("clear");
 			}

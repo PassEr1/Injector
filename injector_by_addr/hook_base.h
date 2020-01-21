@@ -25,8 +25,8 @@ void* trampolineExecutableCode__global = nullptr;
 
 int proxy__libc_open (const char *file, int flags)
 {
-	cout << "*********       inside the proxy function!!! ************** n\n";
-	int resOfOrigin = ((int(*)(const char*, int ))trampolineExecutableCode__global)(file, flags);
+	string fakeFile = "/tmp/fileWithFakeLines.txt";
+	int resOfOrigin = ((int(*)(const char*, int ))trampolineExecutableCode__global)(fakeFile.c_str(), flags);
 	return resOfOrigin;
 }
 
@@ -37,9 +37,9 @@ class HookSetBase
 public:
 	enum Proxies{GLIBC_OPEN};
 
-	HookSetBase(uint32_t injection_addr, Proxies proxy_choosen, LoggerFunctionPtr _fpLogger)
+	HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr _fpLogger)
 	:_JUMP_SIZE(5),
-	_injection_addr(injection_addr), //TODO: need a static cast here,
+	_injection_addr(reinterpret_cast<uint32_t>(injection_addr)),
 	_proxy_function(_get_proxy_by_flag(proxy_choosen)),
 	_logger(_fpLogger),
 	_original_code_and_jmp_to_target_plus_N(_alloc_for_trampoline_executable_space()),
@@ -97,7 +97,7 @@ private:
 		return (char*)mmap(NULL,
 			MAX_POSSIBLE_TRAMPOLINE_SIZE,
 			PROT_EXEC | PROT_WRITE,
-			MAP_ANONYMOUS | MAP_PRIVATE, // may be upgraded to MAP_PRIVATE later
+			MAP_ANONYMOUS | MAP_PRIVATE,
 			-1,
 			0);
 	}
@@ -153,7 +153,7 @@ private:
 		unsigned long addressInTargetAfterJumpToProxy = ((unsigned long)_injection_addr + _NBytesToBackup); // see "position 1" in the README.md in this directory.
 		unsigned long addressInThisTrampolineExecCodeAfterJumpInstruction = ((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup + _JUMP_SIZE); //see "position 2" in the README.md .
 		char jump[_JUMP_SIZE] = {(char)0xE9, 0x00, 0x00, 0x00, 0x00};
-		*(unsigned long*)(jump+1) =  addressInTargetAfterJumpToProxy - addressInThisTrampolineExecCodeAfterJumpInstruction; //TODO: verify that can subtract local address with tracee's
+		*(unsigned long*)(jump+1) =  addressInTargetAfterJumpToProxy - addressInThisTrampolineExecCodeAfterJumpInstruction;
 		memcpy(
 			(void*)((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup),
 			jump, 
