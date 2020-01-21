@@ -26,7 +26,7 @@ namespace proxyies
 
 void hook_Glibc_OpenFunction()
 {
-	HookSetBase hookSetBase((uint32_t)open, (uint32_t)proxyies::proxy__libc_open, logerToStdOut);
+	HookSetBase hookSetBase((uint32_t)open, HookSetBase::Proxies::GLIBC_OPEN, logerToStdOut);
 	hookSetBase.inject_to_libc_open();
 }
 
