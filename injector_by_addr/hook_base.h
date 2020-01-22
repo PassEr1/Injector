@@ -26,7 +26,7 @@ void* trampolineExecutableCode__global = nullptr;
 int proxy__libc_open (const char *file, int flags)
 {
 	string fakeFile = "/tmp/fileWithFakeLines.txt";
-	int resOfOrigin = ((int(*)(const char*, int ))trampolineExecutableCode__global)(fakeFile.c_str(), flags);
+	int resOfOrigin = ((int(*)(const char*, int ))trampolineExecutableCode__global)(file, flags);
 	return resOfOrigin;
 }
 

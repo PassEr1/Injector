@@ -29,7 +29,7 @@ def get_relevant_loaded_libc_from_line(line):
 	return file_name
 
 def get_base_address_of_loaded_libc(target_pid, target_bus_size):
-	symbole_should_exists_in_line = "/lib{}/libc-".format(target_bus_size)
+	symbole_should_exists_in_line = "/lib{}/libdl-".format(target_bus_size)
 	base_address = None
 	file_of_libc = None
 	with open("/proc/{}/maps".format(target_pid)) as proc_maps_file:
@@ -72,7 +72,7 @@ def calc_final_address(hex_as_str1, hex_as_str2):
 
 def main(argv):
 	if len(argv) < 4:
-		raise Exception("Wrong number of arguments.\n Usage:\n	[TARGET_PID] [TARGET_GLIBC_FUNCTION_NAME] [64_OR_32_TARGET_FLAG]")
+		raise Exception("Wrong number of arguments.\n Usage:\n	[TARGET_PID] [TARGET_DL_FUNCTION_NAME] [64_OR_32_TARGET_FLAG] \n Example: get_address_of_glibc_function_in_process.py 64977 dlopen@@GLIBC 32")
 	target_pid = argv[TARGET_PID]
 	target_function_name = argv[TARGET_GLIBC_FUNCTION_NAME]
 	target_bus_size = "64" if argv[_64_OR_32_TARGET_FLAG] == "64" else "32"
