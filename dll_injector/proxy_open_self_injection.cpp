@@ -22,6 +22,7 @@ void hook_Glibc_OpenFunction()
 
 void __attribute__ ((constructor)) my_init(void)
 {
+	system("touch marker.txt");
 	hook_Glibc_OpenFunction();
 	
 }

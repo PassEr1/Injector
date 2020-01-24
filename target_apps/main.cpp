@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		void * library_handler = dlopen("/home/amit/Desktop/Projects/Injector/injector_by_addr/lib_proxy_open_inject.so", RTLD_NOW); // A line that simulates the dll injection somewhere in the code.
+		void * library_handler = dlopen("/home/amit/Desktop/Projects/Injector/dll_injector/lib_proxy_open_inject.so", RTLD_NOW); // A line that simulates the dll injection somewhere in the code.
 		
 		cout << "here is the files content: \n";
 		while(true)

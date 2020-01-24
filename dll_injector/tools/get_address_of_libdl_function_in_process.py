@@ -1,13 +1,4 @@
 #!/usr/bin/env python
-
-"""
-Example of usage:
-get_address_of_glibc_function_in_process.py 113227 printf@@GLIBC_ 32
-------
-Output: the address of printf@@GLIBC_ is 0x7dead5beef
-"""
-
-
 import sys
 import subprocess
 import re
