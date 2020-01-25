@@ -2,3 +2,7 @@
 *.swp
 
 injector_by_addr/lib_proxy_open_inject.so
+
+*.o
+
+target_apps/a.txt
