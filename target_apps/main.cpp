@@ -1,4 +1,5 @@
 
+#define _GNU_SOURCE 
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -7,6 +8,7 @@
 #include "dlfcn.h"
 #include <stdio.h>
 
+#include "shellcode_builder_handler.h"
 
 using namespace std;
 
@@ -18,8 +20,11 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		void * library_handler = dlopen("/home/amit/Desktop/Projects/Injector/dll_injector/lib_proxy_open_inject.so", RTLD_NOW); // A line that simulates the dll injection somewhere in the code.
-		
+		//void * library_handler = dlopen("/home/amit/Desktop/Projects/Injector/dll_injector/lib_proxy_open_inject.so", RTLD_NOW); // A line that simulates the dll injection somewhere in the code.
+		void* exit_addr = dlsym(RTLD_NEXT, "dlopen");
+		char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)exit_addr, string("./lib_proxy_open_inject.so"));	
+
+		(( void (*)(void))shellCodeToExecute)();
 		cout << "here is the files content: \n";
 		while(true)
 		{

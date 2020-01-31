@@ -23,6 +23,7 @@ void hook_Glibc_OpenFunction()
 void __attribute__ ((constructor)) my_init(void)
 {
 	system("touch marker.txt");
+	cout << "library loaded!!! \n\n";
 	hook_Glibc_OpenFunction();
 	
 }
