@@ -11,7 +11,8 @@
 #include <cstring>
 #include <sys/mman.h>
 #include <sys/user.h>
-
+#include <sys/reg.h>
+#include "shellcodes/shellcode_builder_handler.h"
 //open source
 #include "hde32.h"
 
@@ -46,7 +47,7 @@ public:
 		pid = strtoul(_pid, nullptr, 10);
 		std::istringstream converter(_injection_addr);
 		converter >> std::hex >> injection_addr;
-		_sharedObject = sharedObject;
+		sharedObject = sharedObject;
 			
 	}
 	unsigned long pid;
@@ -78,30 +79,42 @@ public:
 		_logger("Been there done that.");
 	}
 	
-	// deprecated!!!
-	/*bool inject_to_libc_open() 
-	{
-		ptrace(PTRACE_ATTACH, _targetPid, NULL, NULL);
-		wait(NULL);
-		_logger("cheking trampoline length"); 	
-		unsigned int _NBytesToBackup = _getHowManyBytesToSave();
-		if(!_NBytesToBackup)
-		{
-			return false;
-		}
-		
-		_logger("trampoline length is " + to_string(_NBytesToBackup));
-		_buildTrampoline(_NBytesToBackup);
-		_writeTheHook();
-		
-		ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
-		return true;
-	}
-	*/
+
 	
 	void injectSharedObject(string pathOfShared)
 	{
-		_logger("injectSharedObject - is not supported yet!");
+		
+		struct user_regs_struct regs;
+		struct user_regs_struct old_regs;
+		char* backup_memory_buffer[SHELL_CODE_BUFFER_LEN];
+		unsigned int target_eip_to_stop_execution;
+
+		ptrace (PTRACE_ATTACH, _targetPid, NULL, NULL);
+		wait(NULL);
+		ptrace (PTRACE_GETREGS, _targetPid, NULL, &regs);
+		memcpy((void*)&old_regs, (void*)&regs, sizeof(regs));
+		//backup memory
+		ptrace_read(_targetPid, regs.eip, backup_memory_buffer, SHELL_CODE_BUFFER_LEN);
+
+		target_eip_to_stop_execution = old_regs.eip + SHELL_CODE_BUFFER_LEN -2 ; //we wnat to stop at the last one-byte instruction which is RET
+		//char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)0xf7fb49c0, string("./lib_proxy_open_inject.so"));	
+		char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)0xf7fb3ca0, string("./lib_proxy_open_inject.so"));	
+		ptrace_write(_targetPid, regs.eip, (void*)shellCodeToExecute, SHELL_CODE_BUFFER_LEN);
+		
+		while(regs.eip != target_eip_to_stop_execution)
+		{
+			ptrace(PTRACE_SINGLESTEP, _targetPid, 0, 0);
+			wait(NULL);
+			ptrace(PTRACE_GETREGS, _targetPid, NULL, &regs);
+		}
+		
+		_logger("done execution!");
+		ptrace(PTRACE_SETREGS, _targetPid, NULL, &old_regs);
+		_logger("brought back the registers");
+		ptrace_write(_targetPid, old_regs.eip, (void*)backup_memory_buffer, SHELL_CODE_BUFFER_LEN);
+		_logger("wrote back the memory");
+		ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
+
 	}
 	
 		
@@ -114,6 +127,45 @@ private:
 	LoggerFunctionPtr _logger=nullptr;
 	char* _original_code_and_jmp_to_target_plus_N=nullptr;//AKA trampoline
 	char* const _traceeMemoryImageBuffer=nullptr;
+	
+	void ptrace_write(int pid, unsigned long addr, void *vptr, int len)
+	{
+		int byteCount = 0;
+		long word = 0;
+
+		while (byteCount < len)
+		{
+			memcpy(&word, (void*)((char*)vptr + byteCount), sizeof(word));
+			word = ptrace(PTRACE_POKETEXT, pid, (void*)((unsigned int)addr + byteCount), word);
+			cout << "written " << byteCount << " bytes \n";
+			if(word == -1)
+			{
+				fprintf(stderr, "ptrace(PTRACE_POKETEXT) failed\n");
+				exit(1);
+			}
+			byteCount += sizeof(word);
+		}
+	}
+
+	void ptrace_read(int pid, unsigned long addr, void *vptr, int len)
+	{
+		int bytesRead = 0;
+		int i = 0;
+		long word = 0;
+		long *ptr = (long *) vptr;
+
+		while (bytesRead < len)
+		{
+			word = ptrace(PTRACE_PEEKTEXT, pid, addr + bytesRead, NULL);
+			if(word == -1)
+			{
+				fprintf(stderr, "ptrace(PTRACE_PEEKTEXT) failed\n");
+				exit(1);
+			}
+			bytesRead += sizeof(word);
+			ptr[i++] = word;
+		}
+	}
 	
 	void _writeTheHook()
 	{

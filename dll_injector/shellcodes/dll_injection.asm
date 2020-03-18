@@ -1,6 +1,8 @@
 SECTION .data
         global _start
-_start:	
+_start:
+
+label_for_loop:
 	mov eax, 0xffffffff
 	push 2 ;RTLD_NOW
 	call bypass_dll_name

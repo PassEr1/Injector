@@ -22,9 +22,11 @@ int main(int argc, char *argv[])
 	{
 		//void * library_handler = dlopen("/home/amit/Desktop/Projects/Injector/dll_injector/lib_proxy_open_inject.so", RTLD_NOW); // A line that simulates the dll injection somewhere in the code.
 		void* exit_addr = dlsym(RTLD_NEXT, "dlopen");
-		char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)exit_addr, string("./lib_proxy_open_inject.so"));	
+		cout << "MY PID IS " << getpid() << " address of dlopen is: " << exit_addr << endl;
 
-		(( void (*)(void))shellCodeToExecute)();
+		//char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)0xf7fb3ca0, string("./lib_proxy_open_inject.so"));	
+		//(( void (*)(void))shellCodeToExecute)();
+
 		cout << "here is the files content: \n";
 		while(true)
 		{
@@ -34,12 +36,12 @@ int main(int argc, char *argv[])
 				string line;
 				while (std::getline(fileToRead, line))
 				{
-					cout << line << endl;
+					//cout << line << endl;
 				}
 				
 				fileToRead.close();
 				usleep(1000);
-				system("clear");
+				//system("clear");
 			}
 			
 		}

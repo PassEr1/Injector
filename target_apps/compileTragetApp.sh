@@ -1,3 +1,3 @@
-g++ -I ../dll_injector/shellcodes/ \
+g++ -o0 -I ../dll_injector/shellcodes/ \
 	main.cpp\
 	 -g -m32 -ldl -o monitor_file_debugable
