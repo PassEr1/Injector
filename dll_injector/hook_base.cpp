@@ -9,6 +9,7 @@
 #include <cstring>
 #include <sys/mman.h>
 #include <sys/user.h>
+#include <exception>
 
 //open source
 #include "hde32.h"
@@ -29,10 +30,10 @@ int ProxyFunctions::proxy__libc_open (const char *file, int flags)
 
 HookSetBase::HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr fpLogger):
 	_injection_addr(reinterpret_cast<uint32_t>(injection_addr)),
-	_proxy_function(_get_proxy_by_flag(proxy_choosen)),
+	_proxy_function(_getProxyByFlag(proxy_choosen)),
 	_logger(fpLogger),
 	_memoryImageBuffer(Consts::MAX_POSSIBLE_TRAMPOLINE_SIZE),
-	_original_code_and_jmp_to_target_plus_N(_alloc_for_trampoline_executable_space())
+	_original_code_and_jmp_to_target_plus_N(Consts::MAX_POSSIBLE_TRAMPOLINE_SIZE, PROT_EXEC | PROT_WRITE)
 {
 	_loadTraceeMemoryImage(_memoryImageBuffer, (void*)_injection_addr);
 	_logger("Indicators has been initiated.");
@@ -41,12 +42,14 @@ HookSetBase::HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunc
 HookSetBase::~HookSetBase()
 {
 	_logger("Hook writer d'tor");
+	
 }
 
-bool HookSetBase::inject_to_libc_open() 
+bool HookSetBase::hook() 
 {
 	_logger("cheking trampoline length");
 	unsigned int _NBytesToBackup = _getHowManyBytesToSave();
+	
 	if(!_NBytesToBackup)
 	{
 		return false;
@@ -73,17 +76,7 @@ void HookSetBase::_writeTheHook()
 			
 }
 
-uint8_t* HookSetBase::_alloc_for_trampoline_executable_space()
-{
-	return reinterpret_cast<uint8_t*>(mmap(NULL,
-		Consts::MAX_POSSIBLE_TRAMPOLINE_SIZE,
-		PROT_EXEC | PROT_WRITE,
-		MAP_ANONYMOUS | MAP_PRIVATE,
-		-1,
-		0));
-}
-
-uint32_t HookSetBase::_get_proxy_by_flag(Proxies proxy_choosen) const
+uint32_t HookSetBase::_getProxyByFlag(Proxies proxy_choosen)
 {
 	switch(proxy_choosen)
 	{
@@ -121,28 +114,22 @@ int HookSetBase::_getHowManyBytesToSave()const
 }
 
 void HookSetBase::_buildTrampoline(int _NBytesToBackup)
-{
-	if(_original_code_and_jmp_to_target_plus_N == nullptr)
-	{
-		_logger("does not have enough space to build trampolint. build is canceled.");
-		return;
-	}
-	
+{	
 	_logger("copying first " + to_string(_NBytesToBackup)+ "  bytes in tracee memory.");
-	memcpy(_original_code_and_jmp_to_target_plus_N, this->_memoryImageBuffer.data(), _NBytesToBackup);
+	memcpy(_original_code_and_jmp_to_target_plus_N.get_data(), this->_memoryImageBuffer.data(), _NBytesToBackup);
 	
 	unsigned long addressInTargetAfterJumpToProxy = ((unsigned long)_injection_addr + _NBytesToBackup); // see "position 1" in the README.md in this directory.
-	unsigned long addressInThisTrampolineExecCodeAfterJumpInstruction = ((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup + Consts::JUMP_SIZE); //see "position 2" in the README.md .
+	unsigned long addressInThisTrampolineExecCodeAfterJumpInstruction = ((unsigned long)_original_code_and_jmp_to_target_plus_N.get_data() + _NBytesToBackup + Consts::JUMP_SIZE); //see "position 2" in the README.md .
 	char jump[Consts::JUMP_SIZE] = {(char)0xE9, 0x00, 0x00, 0x00, 0x00};
 	*(unsigned long*)(jump+1) =  addressInTargetAfterJumpToProxy - addressInThisTrampolineExecCodeAfterJumpInstruction;
 	memcpy(
-		(void*)((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup),
+		(void*)((unsigned long)_original_code_and_jmp_to_target_plus_N.get_data() + _NBytesToBackup),
 		jump, 
 		Consts::JUMP_SIZE						
 	);
 	_logger("trampoline has built.");
 	_logger("assigning the global trampoline pointer to the one that created in this object.");
-	trampolineExecutableCode__global = _original_code_and_jmp_to_target_plus_N;
+	trampolineExecutableCode__global = _original_code_and_jmp_to_target_plus_N.get_data();
 		
 }
 

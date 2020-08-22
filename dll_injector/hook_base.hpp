@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include "memory_map_guard.hpp"
 
 namespace ProxyFunctions
 {
@@ -24,19 +25,20 @@ public:
 	HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr fpLogger);
 	~HookSetBase();
 public:
-	bool inject_to_libc_open();	
+	bool hook();	
 	
 private:
 	const uint32_t _injection_addr;
 	const uint32_t _proxy_function;
 	LoggerFunctionPtr _logger;
 	std::vector<uint8_t> _memoryImageBuffer;
-	uint8_t* _original_code_and_jmp_to_target_plus_N;//AKA trampoline
+	MemoryMapGuard _original_code_and_jmp_to_target_plus_N;//AKA trampoline
+	
+private:
+	static uint32_t _getProxyByFlag(Proxies proxy_choosen);
 	
 private:
 	void _writeTheHook();
-	static uint8_t* _alloc_for_trampoline_executable_space();
-	uint32_t _get_proxy_by_flag(Proxies proxy_choosen) const;
 	int _getHowManyBytesToSave()const;
 	void _buildTrampoline(int _NBytesToBackup);
 	bool _loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr)const;
