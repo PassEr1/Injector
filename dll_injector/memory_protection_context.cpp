@@ -35,7 +35,7 @@ MemoryProtectionContext::MemoryProtectionContext(void* addr, const size_t size)
 :_size(size),
 _addr(addr)
 {
-	change_memory_mode(_addr, _size, PROT_READ | PROT_EXEC);	
+	change_memory_mode(_addr, _size, PROT_WRITE | PROT_EXEC);	
 }
 
 MemoryProtectionContext::~MemoryProtectionContext()
