@@ -27,17 +27,6 @@ void logerToStdOut(const std::string& logMsg)
 	cout << "[>> log message << ] " << logMsg <<endl;
 }
 
-namespace proxies
-{
-	int proxy__libc_open (const char *file, int oflag)
-	{
-		printf("inside the proxy function!!! \n");
-		//int resOfOrigin =(int(*)(const char*, int ))exutetefirstN(x);
-		return -1;
-	}
-}
-
-
 
 class MyArgs
 {
@@ -166,28 +155,7 @@ private:
 			ptr[i++] = word;
 		}
 	}
-	
-	void _writeTheHook()
-	{
-		_logger("writing the jump to the proxy function.");
-		char jumpToProxyFunction[5] = {(char)0xE9, 0x00, 0x00, 0x00, 0x00};
-		*(unsigned long *)(jumpToProxyFunction+1) = (unsigned long)proxies::proxy__libc_open - ((unsigned long)_injection_addr + 5); //TODO: verify that can subtract local address with tracee's
-		
-		uint32_t originalTextCodeInPlus_4_Bytes = ((uint32_t*)_traceeMemoryImageBuffer)[1];
-		memcpy(&originalTextCodeInPlus_4_Bytes, jumpToProxyFunction+4, 1);//put last byte left from jump into next block of code to inject. reserving the rest of the text(that shoud by complete instructions)
-		uint32_t lowerPartOfJump = *((uint32_t*)jumpToProxyFunction);
-		uint32_t upperPrtOfJump = originalTextCodeInPlus_4_Bytes;
-		
-		ptrace(PTRACE_POKETEXT,
-				_targetPid,
-				_injection_addr,
-				(void*)(&lowerPartOfJump));
-		ptrace(PTRACE_POKETEXT,
-				_targetPid,
-				_injection_addr + sizeof(lowerPartOfJump),
-				(void*)(&upperPrtOfJump));
-				
-	}
+
 	
 	char* _alloc_for_trampoline_executable_space()const
 	{
@@ -296,8 +264,8 @@ int main(int argc, char* argv[])
 {
 	cout << "Run Me With sudo (!) " << endl;
 	MyArgs args = validateArgs(argc, argv);
-	Injector32 nurse(args.pid, args.injection_addr, logerToStdOut);
-	nurse.injectSharedObject(args.sharedObject);
+	Injector32 injector(args.pid, args.injection_addr, logerToStdOut);
+	injector.injectSharedObject(args.sharedObject);
 
 }
 
