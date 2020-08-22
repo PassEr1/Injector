@@ -14,8 +14,8 @@ void HookPerformer::hook_glibc_open_function()
 {
 	try
 	{
-		HookSetBase hookSetBase((void*)open, HookSetBase::Proxies::GLIBC_OPEN, HookPerformer::logger_to_std_out);
-		hookSetBase.hook();
+		HookWriter hook_writer((void*)open, HookWriter::Proxies::GLIBC_OPEN, HookPerformer::logger_to_std_out);
+		hook_writer.run();
 	}
 	catch(const std::exception&)
 	{

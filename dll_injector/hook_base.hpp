@@ -12,7 +12,7 @@ namespace ProxyFunctions
 }
 
 
-class HookSetBase final
+class HookWriter final
 {
 
 public:
@@ -22,10 +22,10 @@ public:
 	using LoggerFunctionPtr = void (*)(const std::string&);
 	
 public:
-	HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr fpLogger);
-	~HookSetBase();
+	HookWriter(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr fpLogger);
+	~HookWriter();
 public:
-	void hook();	
+	void run();	
 	
 private:
 	const uint32_t _injection_addr;

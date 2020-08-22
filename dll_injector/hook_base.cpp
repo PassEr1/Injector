@@ -31,7 +31,7 @@ int ProxyFunctions::proxy__libc_open (const char *file, int flags)
 }
 
 
-HookSetBase::HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr fpLogger):
+HookWriter::HookWriter(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr fpLogger):
 	_injection_addr(reinterpret_cast<uint32_t>(injection_addr)),
 	_proxy_function(_getProxyByFlag(proxy_choosen)),
 	_logger(fpLogger),
@@ -42,13 +42,13 @@ HookSetBase::HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunc
 	_logger("Indicators has been initiated.");
 }
 
-HookSetBase::~HookSetBase()
+HookWriter::~HookWriter()
 {
 	_logger("Hook writer d'tor");
 	
 }
 
-void HookSetBase::hook() 
+void HookWriter::run() 
 {
 	_logger("cheking trampoline length");
 	unsigned int bytesToBackupCount = _getHowManyBytesToSave();
@@ -66,7 +66,7 @@ void HookSetBase::hook()
 	
 	
 	
-void HookSetBase::_writeTheHook()
+void HookWriter::_writeTheHook()
 {
 	_logger("writing the jump to the proxy function.");
 	char jumpToProxyFunction[Consts::JUMP_SIZE] = {static_cast<char>(0xE9), 0x00, 0x00, 0x00, 0x00};
@@ -78,7 +78,7 @@ void HookSetBase::_writeTheHook()
 	memcpy((void*)_injection_addr, (void*)jumpToProxyFunction, Consts::JUMP_SIZE);
 }
 
-uint32_t HookSetBase::_getProxyByFlag(Proxies proxy_choosen)
+uint32_t HookWriter::_getProxyByFlag(Proxies proxy_choosen)
 {
 	switch(proxy_choosen)
 	{
@@ -91,7 +91,7 @@ uint32_t HookSetBase::_getProxyByFlag(Proxies proxy_choosen)
 	}
 }
 
-int HookSetBase::_getHowManyBytesToSave()const
+int HookWriter::_getHowManyBytesToSave()const
 {
 
 	const void* functionAddress = reinterpret_cast<void*>(_injection_addr);
@@ -115,7 +115,7 @@ int HookSetBase::_getHowManyBytesToSave()const
 	return trampolineLength;
 }
 
-void HookSetBase::_buildTrampoline(int bytesToBackupCount)
+void HookWriter::_buildTrampoline(int bytesToBackupCount)
 {	
 	_logger("copying first " + to_string(bytesToBackupCount)+ "  bytes in tracee memory.");
 	memcpy(_original_code_and_jmp_to_proxy.get_data(), this->_memoryImageBuffer.data(), bytesToBackupCount);
@@ -129,6 +129,7 @@ void HookSetBase::_buildTrampoline(int bytesToBackupCount)
 		jump, 
 		Consts::JUMP_SIZE						
 	);
+	
 	_logger("trampoline has built.");
 	_logger("assigning the global trampoline pointer to the one that created in this object.");
 	trampolineExecutableCode__global = _original_code_and_jmp_to_proxy.get_data();
@@ -136,7 +137,7 @@ void HookSetBase::_buildTrampoline(int bytesToBackupCount)
 }
 
 
-void HookSetBase::_loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr)const
+void HookWriter::_loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr)const
 {
 	MemoryProtectionReadContext memory_read_context(reinterpret_cast<void*>(_injection_addr), Consts::MAX_POSSIBLE_TRAMPOLINE_SIZE);
 	memcpy(imageBuffer.data(), (void *)_injection_addr, imageBuffer.size());
