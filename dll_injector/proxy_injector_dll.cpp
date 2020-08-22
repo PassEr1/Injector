@@ -1,11 +1,8 @@
+#include "proxy_injector_dll.hpp"
 #include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "hook_base.h"
-#include "proxy_injector_dll.hpp"
 
 using namespace std;
 
