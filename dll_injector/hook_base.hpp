@@ -25,14 +25,14 @@ public:
 	HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr fpLogger);
 	~HookSetBase();
 public:
-	bool hook();	
+	void hook();	
 	
 private:
 	const uint32_t _injection_addr;
 	const uint32_t _proxy_function;
 	LoggerFunctionPtr _logger;
 	std::vector<uint8_t> _memoryImageBuffer;
-	MemoryMapGuard _original_code_and_jmp_to_target_plus_N;//AKA trampoline
+	MemoryMapGuard _original_code_and_jmp_to_proxy;//AKA trampoline
 	
 private:
 	static uint32_t _getProxyByFlag(Proxies proxy_choosen);
@@ -40,11 +40,8 @@ private:
 private:
 	void _writeTheHook();
 	int _getHowManyBytesToSave()const;
-	void _buildTrampoline(int _NBytesToBackup);
+	void _buildTrampoline(int bytesToBackupCount);
 	bool _loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr)const;
-	void* _roundDownToPageBoundary(void* addr)const;
-	void _setTargetAddressToRead(size_t length)const;	
-	void _setTargetAddressToWrite(size_t length)const;
 };
 
 

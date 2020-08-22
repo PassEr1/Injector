@@ -1,6 +1,6 @@
 #include <cstdint>
 
-class MemoryMapGuard
+class MemoryMapGuard final
 {
 
 public:
