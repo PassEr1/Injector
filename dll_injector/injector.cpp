@@ -17,12 +17,12 @@
 #include "hde32.h"
 
 using namespace std;
-using LoggerFunctionPtr = void (*)(std::string);
+using LoggerFunctionPtr = void (*)(const std::string&);
 
 constexpr size_t MAX_POSSIBLE_TRAMPOLINE_SIZE = 25;
 
 
-void logerToStdOut(std::string logMsg)
+void logerToStdOut(const std::string& logMsg)
 {
 	cout << "[>> log message << ] " << logMsg <<endl;
 }
