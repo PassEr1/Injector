@@ -27,22 +27,21 @@ int ProxyFunctions::proxy__libc_open (const char *file, int flags)
 }
 
 
-HookSetBase::HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr _fpLogger)
+HookSetBase::HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr fpLogger)
 :_JUMP_SIZE(5),
 _injection_addr(reinterpret_cast<uint32_t>(injection_addr)),
 _proxy_function(_get_proxy_by_flag(proxy_choosen)),
-_logger(_fpLogger),
+_logger(fpLogger),
 _original_code_and_jmp_to_target_plus_N(_alloc_for_trampoline_executable_space()),
-_memoryImageBuffer(new char[MAX_POSSIBLE_TRAMPOLINE_SIZE])
+_memoryImageBuffer(MAX_POSSIBLE_TRAMPOLINE_SIZE)
 {
-	_loadTraceeMemoryImage(_memoryImageBuffer, (void*)_injection_addr, MAX_POSSIBLE_TRAMPOLINE_SIZE);
+	_loadTraceeMemoryImage(_memoryImageBuffer, (void*)_injection_addr, MAX_POSSIBLE_TRAMPOLINE_SIZE); // remove MAX_POSSIBLE_TRAMPOLINE_SIZE
 	_logger("Indicators has been initiated.");
 }
 
 HookSetBase::~HookSetBase()
 {
-	delete _memoryImageBuffer;
-	_logger("Been there done that.");
+	_logger("Hook writer d'tor");
 }
 
 bool HookSetBase::inject_to_libc_open() 
@@ -84,7 +83,7 @@ char* HookSetBase::_alloc_for_trampoline_executable_space()const
 		0);
 }
 
-uint32_t HookSetBase::_get_proxy_by_flag(Proxies proxy_choosen)
+uint32_t HookSetBase::_get_proxy_by_flag(Proxies proxy_choosen) const
 {
 	switch(proxy_choosen)
 	{
@@ -114,7 +113,7 @@ int HookSetBase::_getHowManyBytesToSave()const
 	while(trampolineLength < _JUMP_SIZE)
 	{
 		_logger("trampoline Length is " + to_string(trampolineLength) + " bytes");
-	 	void* instructionPointer = (void*)((unsigned int)_memoryImageBuffer + trampolineLength);
+	 	void* instructionPointer = (void*)((unsigned int)_memoryImageBuffer.data() + trampolineLength);
 	 	trampolineLength += hde32_disasm(instructionPointer, &disam);
 	}
 	return trampolineLength;
@@ -130,7 +129,7 @@ void HookSetBase::_buildTrampoline(int _NBytesToBackup)
 	}
 	
 	_logger("copying first " + to_string(_NBytesToBackup)+ "  bytes in tracee memory.");
-	memcpy(_original_code_and_jmp_to_target_plus_N, this->_memoryImageBuffer, _NBytesToBackup);
+	memcpy(_original_code_and_jmp_to_target_plus_N, this->_memoryImageBuffer.data(), _NBytesToBackup);
 	
 	unsigned long addressInTargetAfterJumpToProxy = ((unsigned long)_injection_addr + _NBytesToBackup); // see "position 1" in the README.md in this directory.
 	unsigned long addressInThisTrampolineExecCodeAfterJumpInstruction = ((unsigned long)_original_code_and_jmp_to_target_plus_N + _NBytesToBackup + _JUMP_SIZE); //see "position 2" in the README.md .
@@ -148,16 +147,10 @@ void HookSetBase::_buildTrampoline(int _NBytesToBackup)
 }
 
 
-bool HookSetBase::_loadTraceeMemoryImage(char* imageBuffer, void* startAddr, size_t length)const
+bool HookSetBase::_loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr, size_t length)const
 {
-	if(!imageBuffer)
-	{
-		_logger("Could not copy memoty image of target process to buffer!");
-		return false;	
-	}
-
 	_setTargetAddressToRead(MAX_POSSIBLE_TRAMPOLINE_SIZE);
-	memcpy(imageBuffer, (void *)_injection_addr, MAX_POSSIBLE_TRAMPOLINE_SIZE);
+	memcpy(imageBuffer.data(), (void *)_injection_addr, imageBuffer.size());
 	_logger("memory image at the address of the target saved in buffer.");
 	return true;
 }

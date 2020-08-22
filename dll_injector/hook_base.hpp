@@ -2,6 +2,8 @@
 #include <iostream>
 #include <stdint.h>
 #include <string>
+#include <vector>
+#include <cstdint>
 
 namespace ProxyFunctions
 {
@@ -19,7 +21,7 @@ public:
 	using LoggerFunctionPtr = void (*)(const std::string&);
 	
 public:
-	HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr _fpLogger);
+	HookSetBase(void* injection_addr, Proxies proxy_choosen, LoggerFunctionPtr fpLogger);
 	~HookSetBase();
 public:
 	bool inject_to_libc_open();	
@@ -30,15 +32,15 @@ private:
 	const uint32_t _proxy_function=0;
 	LoggerFunctionPtr _logger=nullptr;
 	char* _original_code_and_jmp_to_target_plus_N=nullptr;//AKA trampoline
-	char* const _memoryImageBuffer=nullptr;
+	std::vector<uint8_t> _memoryImageBuffer;
 	
 private:
 	void _writeTheHook();
 	char* _alloc_for_trampoline_executable_space()const;
-	uint32_t _get_proxy_by_flag(Proxies proxy_choosen);
+	uint32_t _get_proxy_by_flag(Proxies proxy_choosen) const;
 	int _getHowManyBytesToSave()const;
 	void _buildTrampoline(int _NBytesToBackup);
-	bool _loadTraceeMemoryImage(char* imageBuffer, void* startAddr, size_t length)const;
+	bool _loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr, size_t length)const;
 	void* _roundDownToPageBoundary(void* addr)const;
 	void _setTargetAddressToRead(size_t length)const;	
 	void _setTargetAddressToWrite(size_t length)const;
