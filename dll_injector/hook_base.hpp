@@ -12,7 +12,7 @@ namespace ProxyFunctions
 }
 
 
-class HookSetBase
+class HookSetBase final
 {
 
 public:
@@ -41,7 +41,7 @@ private:
 	void _writeTheHook();
 	int _getHowManyBytesToSave()const;
 	void _buildTrampoline(int bytesToBackupCount);
-	bool _loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr)const;
+	void _loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr)const;
 };
 
 

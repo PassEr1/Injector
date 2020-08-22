@@ -10,6 +10,11 @@
 #include <sys/user.h>
 #include <exception>
 
+MemoryProtectionContext::MemoryProtectionContext(void* addr, const size_t size)
+:_size(size),
+_addr(addr)
+{}
+
 void* MemoryProtectionContext::_roundDownToPageBoundary(void* addr)
 {
 	static uint32_t pagesize = sysconf(_SC_PAGE_SIZE);
@@ -31,19 +36,25 @@ void MemoryProtectionContext::change_memory_mode(void* addr, const size_t length
 }
 
 
-MemoryProtectionContext::MemoryProtectionContext(void* addr, const size_t size)
-:_size(size),
-_addr(addr)
-{
-	change_memory_mode(_addr, _size, PROT_WRITE | PROT_EXEC);	
-}
-
 MemoryProtectionContext::~MemoryProtectionContext()
 {
 	try
 	{
-		change_memory_mode(_addr, _size, PROT_READ | PROT_EXEC);
+		change_memory_mode(_addr, _size, PROT_EXEC);
 	}
 	catch(...)
 	{}
+}
+
+MemoryProtectionWriteContext::MemoryProtectionWriteContext(void* addr, const size_t size)
+:MemoryProtectionContext(addr, size)
+{
+	change_memory_mode(_addr, _size, PROT_WRITE | PROT_EXEC);	
+}
+
+
+MemoryProtectionReadContext::MemoryProtectionReadContext(void* addr, const size_t size)
+:MemoryProtectionContext(addr, size)
+{
+	change_memory_mode(_addr, _size, PROT_READ| PROT_EXEC);	
 }
