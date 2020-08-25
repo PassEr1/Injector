@@ -27,7 +27,7 @@ Injector32::~Injector32()
 	_logger("Been there done that.");
 }
 		
-void Injector32::injectSharedObject(string pathOfShared)
+void Injector32::injectSharedObject(const std::string& pathOfDll)
 {
 	
 	struct user_regs_struct regs;
@@ -42,9 +42,8 @@ void Injector32::injectSharedObject(string pathOfShared)
 	//backup memory
 	ptrace_read(_targetPid, regs.eip, backup_memory_buffer, SHELL_CODE_BUFFER_LEN);
 
-	target_eip_to_stop_execution = old_regs.eip + SHELL_CODE_BUFFER_LEN -2 ; //we wnat to stop at the last one-byte instruction which is RET
-	//char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)0xf7fb49c0, string("./lib_proxy_open_inject.so"));	
-	char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)0xf7fb3ca0, string("./lib_proxy_open_inject.so"));	
+	target_eip_to_stop_execution = old_regs.eip + SHELL_CODE_BUFFER_LEN -2 ; //we want to stop at the last one-byte instruction which is RET
+	char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)_injection_addr, pathOfDll);	
 	ptrace_write(_targetPid, regs.eip, (void*)shellCodeToExecute, SHELL_CODE_BUFFER_LEN);
 	
 	while(regs.eip != target_eip_to_stop_execution)

@@ -12,7 +12,7 @@ public:
 	Injector32(const Injector32&) = delete;
 	Injector32& operator=(const Injector32&) = delete;
 	
-	void injectSharedObject(std::string pathOfShared);
+	void injectSharedObject(const std::string& pathOfDll);
 	
 private:
 	const size_t _JUMP_SIZE;
