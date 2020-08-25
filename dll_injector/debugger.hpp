@@ -20,6 +20,7 @@ public:
 	std::vector<uint8_t> read_memory(uint32_t address, uint32_t len) const ;
 	void write_data(uint32_t address, const uint8_t* const data, uint32_t len);
 	void set_regs(struct user_regs_struct& regs);
+	void step();
 	
 private:
 	static long my_ptrace(enum __ptrace_request request, pid_t pid, void *addr, void *data);	

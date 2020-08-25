@@ -99,3 +99,12 @@ void Debugger32Bit::set_regs(struct user_regs_struct& regs)
 	my_ptrace(PTRACE_SETREGS, _pid, RESRVED, &regs);
 }
 
+
+void Debugger32Bit::step()
+{
+	static int* RESERVED = 0;
+	my_ptrace(PTRACE_SINGLESTEP, _pid, RESERVED, RESERVED);
+	
+	static int* WAIT_TRACEE  = NULL;
+	wait(WAIT_TRACEE);
+}
