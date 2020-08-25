@@ -6,3 +6,4 @@ injector_by_addr/lib_proxy_open_inject.so
 target_apps/a.txt
 target_apps/marker.txt
 *.pyc
+shell

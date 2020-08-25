@@ -2,6 +2,7 @@
 #include <string>
 #include <cstdint>
 #include <vector>
+#include <sys/ptrace.h>
 
 using LoggerFunctionPtr = void (*)(const std::string&);	
 
@@ -18,8 +19,11 @@ public:
 	
 private:
 	void ptrace_write(int pid, unsigned long addr, void *vptr, int len);
-	void ptrace_read(int pid, unsigned long addr, void *vptr, int len);
+	void ptrace_read(int pid, unsigned long addr, std::vector<uint8_t>& buffer, int len);
 	bool _loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr, size_t length)const;
+
+private:
+static long my_ptrace(enum __ptrace_request request, pid_t pid, void *addr, void *data);
 	
 private:
 	const unsigned long _targetPid;

@@ -19,22 +19,22 @@ _logger(_fpLogger)
 }
 	
 Injector32::~Injector32()
-{
+{}
 
-}
 		
 void Injector32::injectSharedObject(const std::string& pathOfDll)
 {
 	
 	struct user_regs_struct regs;
 	struct user_regs_struct old_regs;
-	char* backup_memory_buffer[SHELL_CODE_BUFFER_LEN];
+	std::vector<uint8_t> backup_memory_buffer(SHELL_CODE_BUFFER_LEN);
 	unsigned int target_eip_to_stop_execution;
 
-	ptrace (PTRACE_ATTACH, _targetPid, NULL, NULL);
+	my_ptrace (PTRACE_ATTACH, _targetPid, NULL, NULL);
 	wait(NULL);
-	ptrace (PTRACE_GETREGS, _targetPid, NULL, &regs);
+	my_ptrace(PTRACE_GETREGS, _targetPid, NULL, &regs);
 	memcpy((void*)&old_regs, (void*)&regs, sizeof(regs));
+
 	//backup memory
 	ptrace_read(_targetPid, regs.eip, backup_memory_buffer, SHELL_CODE_BUFFER_LEN);
 
@@ -44,17 +44,17 @@ void Injector32::injectSharedObject(const std::string& pathOfDll)
 	
 	while(regs.eip != target_eip_to_stop_execution)
 	{
-		ptrace(PTRACE_SINGLESTEP, _targetPid, 0, 0);
+		my_ptrace(PTRACE_SINGLESTEP, _targetPid, 0, 0);
 		wait(NULL);
-		ptrace(PTRACE_GETREGS, _targetPid, NULL, &regs);
+		my_ptrace(PTRACE_GETREGS, _targetPid, NULL, &regs);
 	}
 	
 	_logger("done execution!");
-	ptrace(PTRACE_SETREGS, _targetPid, NULL, &old_regs);
+	my_ptrace(PTRACE_SETREGS, _targetPid, NULL, &old_regs);
 	_logger("brought back the registers");
-	ptrace_write(_targetPid, old_regs.eip, (void*)backup_memory_buffer, SHELL_CODE_BUFFER_LEN);
+	ptrace_write(_targetPid, old_regs.eip, (void*)backup_memory_buffer.data(), SHELL_CODE_BUFFER_LEN);
 	_logger("wrote back the memory");
-	ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
+	my_ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
 
 }
 void Injector32::ptrace_write(int pid, unsigned long addr, void *vptr, int len)
@@ -65,7 +65,7 @@ void Injector32::ptrace_write(int pid, unsigned long addr, void *vptr, int len)
 	while (byteCount < len)
 	{
 		memcpy(&word, (void*)((char*)vptr + byteCount), sizeof(word));
-		word = ptrace(PTRACE_POKETEXT, pid, (void*)((unsigned int)addr + byteCount), word);
+		word = my_ptrace(PTRACE_POKETEXT, pid, (void*)((unsigned int)addr + byteCount), reinterpret_cast<void*>(word));
 		cout << "written " << byteCount << " bytes \n";
 		if(word == -1)
 		{
@@ -76,21 +76,27 @@ void Injector32::ptrace_write(int pid, unsigned long addr, void *vptr, int len)
 	}
 }
 
-void Injector32::ptrace_read(int pid, unsigned long addr, void *vptr, int len)
+void Injector32::ptrace_read(int pid, unsigned long addr, std::vector<uint8_t>& buffer, int len)
 {
+	uint32_t *ptr = reinterpret_cast<uint32_t*>(buffer.data()); //explicitness is important here! (and always)
+	if(!(buffer.size() % sizeof(uint32_t)))
+	{
+		_logger("buffer' size is not a multiple of an opcode size");
+		throw std::exception();
+	}
+	
 	int bytesRead = 0;
 	int i = 0;
 	long word = 0;
-	long *ptr = (long *) vptr;
 
 	while (bytesRead < len)
 	{
-		word = ptrace(PTRACE_PEEKTEXT, pid, addr + bytesRead, NULL);
+		word = my_ptrace(PTRACE_PEEKTEXT, pid, reinterpret_cast<void*>(addr + bytesRead), NULL);
 		if(word == -1)
 		{
-			fprintf(stderr, "ptrace(PTRACE_PEEKTEXT) failed\n");
-			exit(1);
+			throw std::exception();
 		}
+		
 		bytesRead += sizeof(word);
 		ptr[i++] = word;
 	}
@@ -112,7 +118,7 @@ bool Injector32::_loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void*
 	
 	while(currentImageSize < length)
 	{
-		long inst = ptrace(
+		long inst = my_ptrace(
 			PTRACE_PEEKTEXT,
 			_targetPid,
         (void*)((uint32_t)startAddr + offsetFromStart),
@@ -131,4 +137,15 @@ bool Injector32::_loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void*
 	
 
 
-
+long Injector32::my_ptrace(enum __ptrace_request request, pid_t pid,
+	           void *addr, void *data)
+{
+	long status = ptrace(request, pid, addr, data);
+	static const long FAIL = -1;
+	if(status == FAIL)
+	{
+		throw std::exception();
+	}	
+	
+	return status;
+}

@@ -4,8 +4,12 @@
 #include <string.h>
 #include <iostream>
 #include <sys/mman.h>
+
 using namespace std;
-//                                                    V call 0xffffffff                                           V name_of_dll
+
+//here is:					   here is:
+//|                                              |
+//V call 0xffffffff                              V name_of_dll
 unsigned char shellcode_i386[] = "\xb8\xff\xff\xff\xff\x6a\x02\xe8\x1e\x00\x00\x00\x34\x34\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xd0\x83\xc4\x08\xc3";
 static uint32_t i386_posOfFunctionAddress = 1;
 static uint32_t i386_posOfDllName = 12 ;
