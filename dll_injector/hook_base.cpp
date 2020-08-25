@@ -126,7 +126,7 @@ void HookWriter::_buildTrampoline(int bytesToBackupCount)
 	*(unsigned long*)(jump+1) =  addressInTargetFunctionAfterJumpToProxy - addressInThisTrampolineExecCodeAfterJumpInstruction;
 	memcpy(
 		(void*)((unsigned long)_original_code_and_jmp_to_proxy.get_data() + bytesToBackupCount),
-		jump, 
+		jump,
 		Consts::JUMP_SIZE						
 	);
 	
