@@ -10,19 +10,17 @@
 #include "hde32.h"
 
 
-Injector32::Injector32(unsigned long targetPid, uint32_t injection_addr,LoggerFunctionPtr _fpLogger):
-_traceeMemoryImageBuffer(Consts::MAX_POSSIBLE_TRAMPOLINE_SIZE),
+Injector32::Injector32(unsigned long targetPid, uint32_t address_of_function_to_hook,LoggerFunctionPtr _fpLogger):
 _targetPid(targetPid),
-_injection_addr(injection_addr),
+_address_of_function_to_hook(address_of_function_to_hook),
 _logger(_fpLogger)
 {
-	_loadTraceeMemoryImage(_traceeMemoryImageBuffer, (void*)_injection_addr, Consts::MAX_POSSIBLE_TRAMPOLINE_SIZE);
 	_logger("Indicators has been initiated.");
 }
 	
 Injector32::~Injector32()
 {
-	_logger("Been there done that.");
+
 }
 		
 void Injector32::injectSharedObject(const std::string& pathOfDll)
@@ -41,7 +39,7 @@ void Injector32::injectSharedObject(const std::string& pathOfDll)
 	ptrace_read(_targetPid, regs.eip, backup_memory_buffer, SHELL_CODE_BUFFER_LEN);
 
 	target_eip_to_stop_execution = old_regs.eip + SHELL_CODE_BUFFER_LEN -2 ; //we want to stop at the last one-byte instruction which is RET
-	char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)_injection_addr, pathOfDll);	
+	char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)_address_of_function_to_hook, pathOfDll);	
 	ptrace_write(_targetPid, regs.eip, (void*)shellCodeToExecute, SHELL_CODE_BUFFER_LEN);
 	
 	while(regs.eip != target_eip_to_stop_execution)
@@ -105,12 +103,12 @@ bool Injector32::_loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void*
 {
 	if(!imageBuffer.size())
 	{
-		_logger("Could not copy memoty image of target process to buffer!");
+		_logger("Could not copy memory image of target process to buffer!");
 		throw std::exception();	
 	}
 	
 	uint32_t currentImageSize = 0;
-	uint32_t offsetFromStart =0;
+	uint32_t offsetFromStart = 0;
 	
 	while(currentImageSize < length)
 	{

@@ -23,7 +23,6 @@ private:
 	
 private:
 	const unsigned long _targetPid;
-	const uint32_t _injection_addr;
+	const uint32_t _address_of_function_to_hook;
 	LoggerFunctionPtr _logger;
-	std::vector<uint8_t> _traceeMemoryImageBuffer;
 };
