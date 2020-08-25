@@ -6,6 +6,7 @@
 #include <sys/reg.h>
 #include "shellcodes/shellcode_builder_handler.h"
 #include "config.hpp"
+#include "debugger.hpp"
 //open source
 #include "hde32.h"
 
@@ -29,18 +30,18 @@ void Injector32::injectSharedObject(const std::string& pathOfDll)
 	struct user_regs_struct old_regs;
 	std::vector<uint8_t> backup_memory_buffer(SHELL_CODE_BUFFER_LEN);
 	unsigned int target_eip_to_stop_execution;
-
-	my_ptrace (PTRACE_ATTACH, _targetPid, NULL, NULL);
-	wait(NULL);
+	
+	Debugger32Bit debugger(_targetPid);
 	my_ptrace(PTRACE_GETREGS, _targetPid, NULL, &regs);
+	regs = debugger.get_regs();
 	memcpy((void*)&old_regs, (void*)&regs, sizeof(regs));
 
 	//backup memory
-	ptrace_read(_targetPid, regs.eip, backup_memory_buffer, SHELL_CODE_BUFFER_LEN);
+	backup_memory_buffer = debugger.read_memory(regs.eip, SHELL_CODE_BUFFER_LEN);
 
 	target_eip_to_stop_execution = old_regs.eip + SHELL_CODE_BUFFER_LEN -2; //we want to stop at the last one-byte instruction which is RET
 	uint8_t* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)_address_of_function_to_hook, pathOfDll);	
-	ptrace_write(_targetPid, regs.eip, shellCodeToExecute, SHELL_CODE_BUFFER_LEN);
+	debugger.write_data(regs.eip, shellCodeToExecute, SHELL_CODE_BUFFER_LEN);
 	
 	while(regs.eip != target_eip_to_stop_execution)
 	{
@@ -50,12 +51,10 @@ void Injector32::injectSharedObject(const std::string& pathOfDll)
 	}
 	
 	_logger("done execution!");
-	my_ptrace(PTRACE_SETREGS, _targetPid, NULL, &old_regs);
+	debugger.set_regs(old_regs);
 	_logger("brought back the registers");
-	ptrace_write(_targetPid, old_regs.eip, backup_memory_buffer.data(), SHELL_CODE_BUFFER_LEN);
+	debugger.write_data(old_regs.eip, backup_memory_buffer.data(), SHELL_CODE_BUFFER_LEN);
 	_logger("wrote back the memory");
-	my_ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
-
 }
 void Injector32::ptrace_write(int pid, unsigned long addr,const uint8_t* const buffer, int len)
 {

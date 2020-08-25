@@ -1,7 +1,7 @@
+#include <iostream>
 #include "injector.hpp"
 #include "args.hpp"
 #include "injector.hpp"
-#include <iostream>
 
 void logerToStdOut(const std::string& logMsg);
 MyArgs validateArgs(int argc, char* argv[]);
@@ -28,8 +28,14 @@ int main(int argc, char* argv[])
 {
 	std::cout << "Run Me With sudo (!) " << std::endl;
 	MyArgs args = validateArgs(argc, argv);
-	Injector32 injector(args.pid(), args.injection_addr(), logerToStdOut);
-	injector.injectSharedObject(args.sharedObject());
-
+	try
+	{
+		Injector32 injector(args.pid(), args.injection_addr(), logerToStdOut);
+		injector.injectSharedObject(args.sharedObject());
+	}
+	catch(...)
+	{
+		logerToStdOut("injection failed!");
+	}	
 }
 
