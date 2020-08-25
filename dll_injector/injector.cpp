@@ -11,8 +11,7 @@
 
 
 Injector32::Injector32(unsigned long targetPid, uint32_t injection_addr,LoggerFunctionPtr _fpLogger):
-_JUMP_SIZE(5),
-_traceeMemoryImageBuffer(new char[Consts::MAX_POSSIBLE_TRAMPOLINE_SIZE]),
+_traceeMemoryImageBuffer(Consts::MAX_POSSIBLE_TRAMPOLINE_SIZE),
 _targetPid(targetPid),
 _injection_addr(injection_addr),
 _logger(_fpLogger)
@@ -23,7 +22,6 @@ _logger(_fpLogger)
 	
 Injector32::~Injector32()
 {
-	delete _traceeMemoryImageBuffer;
 	_logger("Been there done that.");
 }
 		
@@ -103,12 +101,12 @@ void Injector32::ptrace_read(int pid, unsigned long addr, void *vptr, int len)
 	
 	
 	
-bool Injector32::_loadTraceeMemoryImage(char* imageBuffer, void* startAddr, size_t length)const
+bool Injector32::_loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr, size_t length)const
 {
-	if(!imageBuffer)
+	if(!imageBuffer.size())
 	{
 		_logger("Could not copy memoty image of target process to buffer!");
-		return false;	
+		throw std::exception();	
 	}
 	
 	uint32_t currentImageSize = 0;
@@ -122,7 +120,7 @@ bool Injector32::_loadTraceeMemoryImage(char* imageBuffer, void* startAddr, size
         (void*)((uint32_t)startAddr + offsetFromStart),
         NULL);
 		memcpy(
-   		imageBuffer + offsetFromStart,
+   		imageBuffer.data() + offsetFromStart,
    		&inst,
    		sizeof(inst));
    
