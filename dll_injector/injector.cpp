@@ -38,9 +38,9 @@ void Injector32::injectSharedObject(const std::string& pathOfDll)
 	//backup memory
 	ptrace_read(_targetPid, regs.eip, backup_memory_buffer, SHELL_CODE_BUFFER_LEN);
 
-	target_eip_to_stop_execution = old_regs.eip + SHELL_CODE_BUFFER_LEN -2 ; //we want to stop at the last one-byte instruction which is RET
-	char* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)_address_of_function_to_hook, pathOfDll);	
-	ptrace_write(_targetPid, regs.eip, (void*)shellCodeToExecute, SHELL_CODE_BUFFER_LEN);
+	target_eip_to_stop_execution = old_regs.eip + SHELL_CODE_BUFFER_LEN -2; //we want to stop at the last one-byte instruction which is RET
+	uint8_t* shellCodeToExecute = completeShellCode::getShellCodeCall_dlopen_i386((void*)_address_of_function_to_hook, pathOfDll);	
+	ptrace_write(_targetPid, regs.eip, shellCodeToExecute, SHELL_CODE_BUFFER_LEN);
 	
 	while(regs.eip != target_eip_to_stop_execution)
 	{
@@ -52,19 +52,19 @@ void Injector32::injectSharedObject(const std::string& pathOfDll)
 	_logger("done execution!");
 	my_ptrace(PTRACE_SETREGS, _targetPid, NULL, &old_regs);
 	_logger("brought back the registers");
-	ptrace_write(_targetPid, old_regs.eip, (void*)backup_memory_buffer.data(), SHELL_CODE_BUFFER_LEN);
+	ptrace_write(_targetPid, old_regs.eip, backup_memory_buffer.data(), SHELL_CODE_BUFFER_LEN);
 	_logger("wrote back the memory");
 	my_ptrace(PTRACE_DETACH, _targetPid, NULL, NULL);
 
 }
-void Injector32::ptrace_write(int pid, unsigned long addr, void *vptr, int len)
+void Injector32::ptrace_write(int pid, unsigned long addr,const uint8_t* const buffer, int len)
 {
 	int byteCount = 0;
 	long word = 0;
 
 	while (byteCount < len)
 	{
-		memcpy(&word, (void*)((char*)vptr + byteCount), sizeof(word));
+		memcpy(&word, (void*)(buffer + byteCount), sizeof(word));
 		word = my_ptrace(PTRACE_POKETEXT, pid, (void*)((unsigned int)addr + byteCount), reinterpret_cast<void*>(word));
 		cout << "written " << byteCount << " bytes \n";
 		if(word == -1)
@@ -72,6 +72,7 @@ void Injector32::ptrace_write(int pid, unsigned long addr, void *vptr, int len)
 			fprintf(stderr, "ptrace(PTRACE_POKETEXT) failed\n");
 			exit(1);
 		}
+		
 		byteCount += sizeof(word);
 	}
 }
@@ -100,39 +101,6 @@ void Injector32::ptrace_read(int pid, unsigned long addr, std::vector<uint8_t>& 
 		bytesRead += sizeof(word);
 		ptr[i++] = word;
 	}
-}
-
-	
-	
-	
-bool Injector32::_loadTraceeMemoryImage(std::vector<uint8_t>& imageBuffer, void* startAddr, size_t length)const
-{
-	if(!imageBuffer.size())
-	{
-		_logger("Could not copy memory image of target process to buffer!");
-		throw std::exception();	
-	}
-	
-	uint32_t currentImageSize = 0;
-	uint32_t offsetFromStart = 0;
-	
-	while(currentImageSize < length)
-	{
-		long inst = my_ptrace(
-			PTRACE_PEEKTEXT,
-			_targetPid,
-        (void*)((uint32_t)startAddr + offsetFromStart),
-        NULL);
-		memcpy(
-   		imageBuffer.data() + offsetFromStart,
-   		&inst,
-   		sizeof(inst));
-   
-   offsetFromStart += sizeof(inst);
-   currentImageSize += sizeof(inst);
-	}
-	
-	return true;
 }
 	
 

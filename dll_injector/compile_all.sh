@@ -1,4 +1,4 @@
-g++ -std=c++11 -m32 -I ./open_source_code/  injector.cpp  args.cpp main.cpp -o injector \
+g++ -std=c++11 -m32 -I ./open_source_code/  injector.cpp  args.cpp main.cpp debugger.cpp -o injector \
 ./open_source_code/hde32.o
 
 g++ -I ./open_source_code/ -m32 -shared -o lib_proxy_open_inject.so -fPIC -g -Wall \
